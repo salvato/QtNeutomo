@@ -31,21 +31,24 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "Projection.h"
 #include "imagewindow.h"
 #include "chooseroidlg.h"
+#include "dotomodlg.h"
 
 
 MainWindow::MainWindow(QWidget *parent)
   : QWidget(parent)
   , pImageWindow(Q_NULLPTR)
   , pProjSum(Q_NULLPTR)
-  , preProcessDlg(Q_NULLPTR)
+  , pPreProcessDlg(Q_NULLPTR)
   , pChooseRoiDlg(Q_NULLPTR)
+  , pDoTomoDlg(Q_NULLPTR)
 {
   qDebug() << "Ideal thread number ="
            << QThread::idealThreadCount();
   initLayout();// Init Window Layout
   if(!checkOpenGL()) return;
-  preProcessDlg = new PreProcessDlg();
+  pPreProcessDlg = new PreProcessDlg();
   pChooseRoiDlg = new ChooseRoiDlg();
+  pDoTomoDlg = new DoTomoDlg();
   pImageWindow = new ImageWindow();
   pImageWindow->showNormal();
   initEvents();
@@ -289,18 +292,18 @@ MainWindow::onPreProcessPushed() {
   pStatusLine->setText("onPreProcessPushed");
 
   QSettings settings("Gabriele Salvato", "QtNeuTomo");
-  preProcessDlg->restoreGeometry(settings.value("PreProcessDlg/geometry").toByteArray());
-  if(preProcessDlg->exec() == QDialog::Rejected)
+  pPreProcessDlg->restoreGeometry(settings.value("PreProcessDlg/geometry").toByteArray());
+  if(pPreProcessDlg->exec() == QDialog::Rejected)
     return;
   qDebug() << "Image Normalization Started...";
   enableWidgets(false);
-  if(!checkAndDeleteFiles(preProcessDlg->getOutputPath())) {
+  if(!checkAndDeleteFiles(pPreProcessDlg->getOutputPath())) {
     enableWidgets(true);
     return;
   }
   if(pProjSum != Q_NULLPTR) delete pProjSum;
   pProjSum = new CProjection();
-  if(!buildImgSum(preProcessDlg->getInputPath(), pProjSum)) {
+  if(!buildImgSum(pPreProcessDlg->getInputPath(), pProjSum)) {
     QMessageBox msgBox;
     msgBox.setIcon(QMessageBox::Information);
     msgBox.setText(QString("Unable to read Projection files or File Error"));
@@ -391,8 +394,8 @@ MainWindow::normalizeProjections() {
   qApp->processEvents();
 
   CProjection Dark;
-  if(preProcessDlg->getDarkUse()) {
-    if(!buildImgSum(preProcessDlg->getDarkPath(), &Dark, cropRegion, preProcessDlg->getDarkMedianFilter())) {
+  if(pPreProcessDlg->getDarkUse()) {
+    if(!buildImgSum(pPreProcessDlg->getDarkPath(), &Dark, cropRegion, pPreProcessDlg->getDarkMedianFilter())) {
       QMessageBox msgBox;
       msgBox.setIcon(QMessageBox::Information);
       msgBox.setText(QString("Unable to read Dark files or File Error"));
@@ -405,8 +408,8 @@ MainWindow::normalizeProjections() {
   }
 
   CProjection Beam;
-  if(preProcessDlg->getFlatFieldUse()) {
-    if(!buildImgSum(preProcessDlg->getFlatFieldPath(), &Beam, cropRegion, preProcessDlg->getFlatFieldMedianFilter())) {
+  if(pPreProcessDlg->getFlatFieldUse()) {
+    if(!buildImgSum(pPreProcessDlg->getFlatFieldPath(), &Beam, cropRegion, pPreProcessDlg->getFlatFieldMedianFilter())) {
       QMessageBox msgBox;
       msgBox.setIcon(QMessageBox::Information);
       msgBox.setText(QString("Unable to read Dark files or File Error"));
@@ -418,14 +421,14 @@ MainWindow::normalizeProjections() {
     }
   }
 
-  QDir directory = QDir(preProcessDlg->getInputPath(), QString("*.fits"), QDir::Name, QDir::Files);
+  QDir directory = QDir(pPreProcessDlg->getInputPath(), QString("*.fits"), QDir::Name, QDir::Files);
   if(!directory.exists()) {
-    qDebug() << preProcessDlg->getInputPath() << " Directory does no exists";
+    qDebug() << pPreProcessDlg->getInputPath() << " Directory does no exists";
     return;
   }
   QStringList fileList = directory.entryList();
   if(fileList.isEmpty()) {
-    qDebug() << preProcessDlg->getInputPath() << " No .fits files in Directory";
+    qDebug() << pPreProcessDlg->getInputPath() << " No .fits files in Directory";
     return;
   }
 
@@ -434,7 +437,7 @@ MainWindow::normalizeProjections() {
   CurrProj.f_MedianThreshold = 0.0;
 
   foreach (QString file, fileList) {
-    if(!CurrProj.ReadFromFitsFile(preProcessDlg->getInputPath() + tr("/") + file)) {
+    if(!CurrProj.ReadFromFitsFile(pPreProcessDlg->getInputPath() + tr("/") + file)) {
       QMessageBox msgBox;
       msgBox.setIcon(QMessageBox::Information);
       msgBox.setText(QString("Error Reading Fits File:"));
@@ -445,29 +448,29 @@ MainWindow::normalizeProjections() {
     }
     if(CurrProj.f_angle == CurrProj.FLOAT_UNDEFINED) {
       CurrProj.f_angle = angle;
-      angle += preProcessDlg->getDegPerStep();
+      angle += pPreProcessDlg->getDegPerStep();
     }
     CurrProj.Crop(cropRegion);
-    if(preProcessDlg->getInputMedianFilter())
+    if(pPreProcessDlg->getInputMedianFilter())
       CurrProj.Median(3);
-    if(preProcessDlg->getDarkUse() && preProcessDlg->getFlatFieldUse())
+    if(pPreProcessDlg->getDarkUse() && pPreProcessDlg->getFlatFieldUse())
       CurrProj.FlatFieldCorr(Beam, Dark);
-    else if(preProcessDlg->getFlatFieldUse())
+    else if(pPreProcessDlg->getFlatFieldUse())
       CurrProj.FlatFieldCorr(Beam);
-    else if(preProcessDlg->getDarkUse())
+    else if(pPreProcessDlg->getDarkUse())
       CurrProj.Subtract(Dark);
     // Do we have to normalize to the Open Beam Value ?
     if(bOpenBeamCorr)
       CurrProj.OpenBeamCorr(beamRegion);
     // Post Median Filtering ?
-    if(preProcessDlg->getOutputdMedianFilter())
+    if(pPreProcessDlg->getOutputdMedianFilter())
       CurrProj.Median(3);
     // Show the Normalized Projection
     if(CurrProj.n_columns > CurrProj.n_rows)
       pImageWindow->setGeometry(QRect(0, 0, 512, (512*CurrProj.n_rows)/CurrProj.n_columns));
     else
       pImageWindow->setGeometry(QRect(0, 0, (512*CurrProj.n_columns)/CurrProj.n_rows, 512));
-    if(!CurrProj.WriteToFitsFile(preProcessDlg->getOutputPath(), file)) {
+    if(!CurrProj.WriteToFitsFile(pPreProcessDlg->getOutputPath(), file)) {
       QMessageBox msgBox;
       msgBox.setIcon(QMessageBox::Information);
       msgBox.setText(QString("Error Writing Fits File:"));
@@ -609,23 +612,46 @@ MainWindow::buildImgSum(QString sDirectory, CProjection* pImgSum, QRect cropRegi
 
 void
 MainWindow::onDoTomoPushed() {
-  pStatusLine->setText("onDoTomoPushed");
-  CProjection* pProjection;
-  pProjection = new CProjection();
-  if(!pProjection->ReadFromFitsFile(QString("/home/gabriele/fits/Sample0001.fits"))) {
-    qDebug() << "Error reading Fits File";
-  } else {
-    pProjection->Normalize(0.0, 1.0);
-    QPoint position = pImageWindow->position();
-    QSize size;
-    if(pProjection->n_columns > pProjection->n_rows)
-      size = QSize(512, (512*pProjection->n_rows)/pProjection->n_columns);
-    else
-      size = QSize((512*pProjection->n_columns)/pProjection->n_rows, 512);
-    pImageWindow->setGeometry(QRect(position, size));
-    pImageWindow->loadTexture(pProjection->pData, pProjection->n_columns, pProjection->n_rows);
-    pImageWindow->setTitle(QString("/home/gabriele/fits/Sample0000.fits"));
-    pImageWindow->showNormal();
+  enableWidgets(false);
+  if(pDoTomoDlg->exec() == QDialog::Rejected) {
+    enableWidgets(true);
+    return;
   }
+  if(!checkAndDeleteFiles(pDoTomoDlg->getSlicesPath())) {
+    enableWidgets(true);
+    return;
+  }
+  // Arrange projection files in an array with ascending angle
+  if(!arrangeProjections(pDoTomoDlg->getNormalizedPath())) {
+    enableWidgets(true);
+    return;
+  }
+}
+
+
+bool
+MainWindow::arrangeProjections(QString sPath) {
+  angle.clear();
+  filename.clear();
+  QDir directory = QDir(sPath, QString("*.fits"), QDir::Name, QDir::Files);
+  if(!directory.exists()) {
+    QMessageBox msgBox;
+    msgBox.setIcon(QMessageBox::Information);
+    msgBox.setText(QString("The Directory does not exists !"));
+    msgBox.setInformativeText(sPath);
+    msgBox.setStandardButtons(QMessageBox::Ok);
+    msgBox.exec();
+    return false;
+  }
+  QStringList fileList = directory.entryList();
+  if(fileList.isEmpty()) {
+    QMessageBox msgBox;
+    msgBox.setIcon(QMessageBox::Information);
+    msgBox.setText(QString("The Directory %1 does not contains any fits file !").arg(sPath));
+    msgBox.setStandardButtons(QMessageBox::Ok);
+    msgBox.exec();
+    return false;
+  }
+  return true;
 }
 

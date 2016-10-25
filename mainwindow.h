@@ -34,6 +34,7 @@ QT_FORWARD_DECLARE_CLASS(QVBoxLayout)
 QT_FORWARD_DECLARE_CLASS(CProjection)
 QT_FORWARD_DECLARE_CLASS(ImageWindow)
 QT_FORWARD_DECLARE_CLASS(ChooseRoiDlg)
+QT_FORWARD_DECLARE_CLASS(DoTomoDlg)
 QT_FORWARD_DECLARE_CLASS(CProjection)
 
 class MainWindow : public QWidget
@@ -42,7 +43,6 @@ class MainWindow : public QWidget
 
 public:// Functions
   explicit MainWindow(QWidget *parent = 0);
-//  virtual ~MainWindow();
 
 public slots:
   void onPreProcessPushed();
@@ -64,6 +64,7 @@ private:// Functions
   bool buildImgSum(QString sDirectory, CProjection* pImgSum, QRect cropRegion, bool bMedianFilter);
   void normalizeProjections();
   void enableWidgets(bool bEnable);
+  bool arrangeProjections(QString sPath);
 
 private:// Objects
   QPushButton* pButtonPreprocess;
@@ -72,11 +73,15 @@ private:// Objects
   ImageWindow* pImageWindow;
   CProjection* pProjSum;
 
-  PreProcessDlg* preProcessDlg;
+  PreProcessDlg* pPreProcessDlg;
   ChooseRoiDlg*  pChooseRoiDlg;
+  DoTomoDlg*     pDoTomoDlg;
 
   QRect cropRegion;
   QRect beamRegion;
+
+  QVector<float> angle;
+  QVector<QString> filename;
 
   bool bDoTomoEnabled;
   bool bOpenBeamCorr;

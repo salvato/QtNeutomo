@@ -34,6 +34,14 @@ class DoTomoDlg : public QDialog
 
 public:
   DoTomoDlg(QWidget *parent = 0);
+  QString getSlicesPath();
+  QString getNormalizedPath();
+
+public slots:
+  void onNormalizedPathButtonPressed();
+  void onSlicesPathButtonPressed();
+  void onOkButtonPressed();
+  void onCancelButtonPressed();
 
 protected:
   void createWidgets();
