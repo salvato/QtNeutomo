@@ -91,17 +91,17 @@ ImageWindow::initializeGL() {
 void
 ImageWindow::initShaders() {
   // Compile vertex shader
-  if(!imageProgram.addShaderFromSourceFile(QOpenGLShader::Vertex, "/home/gabriele/qtprojects/QtNeuTomo/imageShader.vert"))
+  if(!imageProgram.addShaderFromSourceFile(QOpenGLShader::Vertex, "/home/gabriele/qtprojects/QtNeutomo/imageShader.vert"))
     close();
   // Compile fragment shader
-  if(!imageProgram.addShaderFromSourceFile(QOpenGLShader::Fragment, "/home/gabriele/qtprojects/QtNeuTomo/imageShader.frag"))
+  if(!imageProgram.addShaderFromSourceFile(QOpenGLShader::Fragment, "/home/gabriele/qtprojects/QtNeutomo/imageShader.frag"))
     close();
   // Link shader pipeline
   if(!imageProgram.link())
     close();
-  if(!selectionProgram.addShaderFromSourceFile(QOpenGLShader::Vertex, "/home/gabriele/qtprojects/QtNeuTomo/imageShader.vert"))
+  if(!selectionProgram.addShaderFromSourceFile(QOpenGLShader::Vertex, "/home/gabriele/qtprojects/QtNeutomo/imageShader.vert"))
     close();
-  if(!selectionProgram.addShaderFromSourceFile(QOpenGLShader::Fragment, "/home/gabriele/qtprojects/QtNeuTomo/selectionshader.frag"))
+  if(!selectionProgram.addShaderFromSourceFile(QOpenGLShader::Fragment, "/home/gabriele/qtprojects/QtNeutomo/selectionshader.frag"))
     close();
   if(!selectionProgram.link())
     close();

@@ -49,9 +49,20 @@ DoTomoDlg::createWidgets() {
   cancelButton         = new QPushButton("Cancel");
 
   // Tooltips:
-  xLeftEdit->setToolTip(tr("Set X Left coordinate"));
-  yTopEdit->setToolTip(tr("Set Y Top coordinate"));
-  xRightEdit->setToolTip(tr("Set X Right coordinate"));
-  yBottomEdit->setToolTip(tr("Set Y Bottom coordinate"));
+//  xLeftEdit->setToolTip(tr("Set X Left coordinate"));
+//  yTopEdit->setToolTip(tr("Set Y Top coordinate"));
+//  xRightEdit->setToolTip(tr("Set X Right coordinate"));
+//  yBottomEdit->setToolTip(tr("Set Y Bottom coordinate"));
 }
 
+
+void
+DoTomoDlg::buildLayout() {
+
+}
+
+
+void
+DoTomoDlg::initSignals() {
+
+}
