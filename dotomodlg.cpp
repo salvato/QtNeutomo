@@ -31,6 +31,8 @@ DoTomoDlg::DoTomoDlg(QWidget *parent)
   // Restore previous section values
   QSettings settings("Gabriele Salvato", "QtNeuTomo");
   restoreGeometry(settings.value("ChooseRoiDlg/DoTomoDlg").toByteArray());
+  normalizedPathEdit->setText(settings.value("ChooseRoiDlg/normalizedPath", ".").toByteArray());
+  slicesPathEdit->setText(settings.value("ChooseRoiDlg/slicesPath", ".").toByteArray());
   initSignals();
 }
 
@@ -49,10 +51,10 @@ DoTomoDlg::createWidgets() {
   cancelButton         = new QPushButton("Cancel");
 
   // Tooltips:
-//  xLeftEdit->setToolTip(tr("Set X Left coordinate"));
-//  yTopEdit->setToolTip(tr("Set Y Top coordinate"));
-//  xRightEdit->setToolTip(tr("Set X Right coordinate"));
-//  yBottomEdit->setToolTip(tr("Set Y Bottom coordinate"));
+  normalizedPathEdit->setToolTip(tr("Path containing the normalized projections"));
+  slicesPathEdit->setToolTip(tr("Path for the output slices"));
+  normalizedPathButton->setToolTip(tr("Change the path containing the normalized projections"));
+  slicesPathButton->setToolTip(tr("Change Path for the output slices"));
 }
 
 
