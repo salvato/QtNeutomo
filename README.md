@@ -16,4 +16,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *
 */
-Readme file for QtNeuTomo
+
+You need to install the CFITSIO library from:
+
+http://heasarc.gsfc.nasa.gov/fitsio/fitsio.html
+

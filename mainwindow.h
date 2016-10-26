@@ -65,6 +65,9 @@ private:// Functions
   void normalizeProjections();
   void enableWidgets(bool bEnable);
   bool arrangeProjections(QString sPath);
+  bool lineRegress(float *x, float *y, int n, float *a, float *b, float *r);
+  void crossCorr(float *y1, float *y2, float *r, int nSamples, int nChan);
+  bool FindCenter(CProjection* pProjection0, CProjection* pProjection180);
 
 private:// Objects
   QPushButton* pButtonPreprocess;
@@ -80,10 +83,14 @@ private:// Objects
   QRect cropRegion;
   QRect beamRegion;
 
-  QVector<float> angle;
-  QVector<QString> filename;
+  QVector<float> angles;
+  QVector<QString> fileNames;
 
   bool bDoTomoEnabled;
   bool bOpenBeamCorr;
+
+  float rotationCenter;
+  float tiltAngle;
+
 };
 #endif // MAINWINDOW_H

@@ -32,6 +32,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "imagewindow.h"
 #include "chooseroidlg.h"
 #include "dotomodlg.h"
+#include <float.h>
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -55,6 +56,7 @@ MainWindow::MainWindow(QWidget *parent)
   // Restore previous section values
   QSettings settings("Gabriele Salvato", "QtNeuTomo");
   move(QPoint(settings.value("MainWindow/geometry", QPoint(10, 10)).toPoint()));
+
 }
 
 
@@ -138,9 +140,11 @@ MainWindow::checkOpenGL() {
   qDebug() << QString("OpenGL Version: ")       + QString(cVersion1);
   char* cRenderer1  = (char*)glGetString(GL_RENDERER);
   qDebug() << QString("Graphic Adapter: ")      + QString(cRenderer1);
+  char* cShader1 = (char*)glGetString(GL_SHADING_LANGUAGE_VERSION);
+  qDebug() << QString("Shading Language Version: ")      + QString(cShader1);
   if(!OpenGLContext->hasExtension("GL_NV_texture_rectangle")) {
-     qDebug() << "Sorry No ARB_texture_rectangle in OpenGL";
-     return false;
+    qDebug() << "Sorry No ARB_texture_rectangle in OpenGL";
+    return false;
   }
 //  ARB_texture_rectangle
 //  char* cExtensions = (char*)glGetString(GL_EXTENSIONS);
@@ -371,6 +375,7 @@ MainWindow::onBeamSelected(QRect Selection) {
   beamRegion = Selection;
   bOpenBeamCorr = true;
   normalizeProjections();
+  enableWidgets(true);
 }
 
 
@@ -626,13 +631,161 @@ MainWindow::onDoTomoPushed() {
     enableWidgets(true);
     return;
   }
+  // Try to extimate Rotation Center and Tilt
+  rotationCenter = 0.0;
+  tiltAngle      = 0.0;
+  int i180       = 0;
+  float fDist    = FLT_MAX;
+  for(int i=angles.size()-1; i>-1; i--) {
+    if(fabs(angles[i]-180.0f) < fDist) {
+      fDist = fabs(angles[i]-180.0f);
+      i180  = i;
+    }
+  }
+  if(fDist > 1.0) {
+    QString sString;
+    sString =tr("Distance between specular images = %1°\nIt should be 180°").arg(angles[i180]-angles[0]);
+    QMessageBox msgBox;
+    msgBox.setIcon(QMessageBox::Information);
+    msgBox.setText(QString("Warning !"));
+    msgBox.setInformativeText(sString);
+    msgBox.setStandardButtons(QMessageBox::Ok);
+    msgBox.exec();
+  }
+
+  CProjection* pP0 = new CProjection();
+  CProjection* pP180 = new CProjection();
+  pP0->ReadFromFitsFile(pDoTomoDlg->getNormalizedPath() + "/" + fileNames[0]);
+  pP180->ReadFromFitsFile(pDoTomoDlg->getNormalizedPath() + "/" + fileNames[i180]);
+  if(!FindCenter(pP0, pP180)) {
+    enableWidgets(true);
+    return;
+  }
+}
+
+
+bool
+MainWindow::FindCenter(CProjection* pProjection0, CProjection* pProjection180) {
+  bool bFindOk = true;
+  pProjection180->HorizontalFlip();
+  int imgWidth = pProjection0->n_columns;
+  int imgHeight = pProjection0->n_rows;
+  float* rm = new float[imgHeight];
+  float* m  = new float[imgHeight];
+  float* _x = new float[imgHeight];
+  float* r  = new float[imgWidth];
+  memset(m, 0, sizeof(*m)*imgHeight);
+  float *p1, *p2;
+  float fMin, fMax, rMin, rMax;
+  float rc;
+
+  for(int row=0; row<imgHeight; row++) {
+    _x[row] = row-0.5*imgHeight;
+    p1 = pProjection0->pData+row*imgWidth;
+    p2 = pProjection180->pData+row*imgWidth;
+    crossCorr(p1, p2, r, imgWidth, imgWidth);
+    rMax = -FLT_MAX;
+    for(int i=0; i<imgWidth; i++) {
+      if(*(r+i) > rMax) {
+        rMax    = *(r+i);
+        rm[row] = rMax;
+        m[row]  = double(i)-0.5*imgWidth;
+      } // if(*(r+i) > rMax)
+    } // for(i=0; i<imgWidth; i++)
+  } // for(row=0; row<height; row++)
+  lineRegress(&_x[imgHeight/4], &m[imgHeight/4], imgHeight/2, &rotationCenter,  &tiltAngle, &rc);
+
+  int n = 0;
+  float* xx = new float[imgHeight];
+  float* mm = new float[imgHeight];
+  for(int i=0; i<imgHeight; i++) {
+    if(fabs(rotationCenter+(tiltAngle)*_x[i]-m[i]) < 2) {
+      xx[n] = _x[i];
+      mm[n] = m[i];
+      n++;
+    }
+  }
+  if(n > imgHeight/8) {
+    lineRegress(xx, mm, n, &rotationCenter,  &tiltAngle, &rc);
+  }
+
+  if(xx != NULL) delete[] xx;
+  if(mm != NULL) delete[] mm;
+  if(_x != NULL) delete[] _x; _x = NULL;
+  if(r  != NULL) delete[] r;
+  if(m  != NULL) delete[] m; m= NULL;
+  if(rm != NULL) delete[] rm;
+
+  tiltAngle   = atan(tiltAngle)*90.0/M_PI;
+  rotationCenter = 0.5*(rotationCenter);
+  CProjection p0, p180;
+  p0.Copy(*pProjection0);
+  p180.Copy(*pProjection180);
+  p0.GetMinMax(&fMin, &fMax);
+  p180.GetMinMax(&rMin, &rMax);
+  if((fMax-fMin == 0.0) ||(rMax-rMin==0.0))
+    return false;
+  float f_in;
+  for(int i=0; i<p0.n_columns*p0.n_rows; i++) {
+    f_in = (*(p0.pData+i)-fMin)/(fMax-fMin);
+    //f_in = 0.5*sin(M_PI*f_in-(M_PI*.5))+1.0;
+    *(p0.pData+i) = f_in;
+    f_in = (*(p180.pData+i)-fMin)/(fMax-fMin);
+    ///f_in = 0.5*sin(M_PI*f_in-(M_PI*.5))+1.0;
+    *(p180.pData+i) = f_in;
+  }
+  QString sString;
+  sString = tr("Rotation center %1").arg(-rotationCenter);
+  qDebug() << sString;
+  sString = tr("Tilt Angle %1").arg(-0.5*tiltAngle);
+  qDebug() << sString;
+
+//  if(pAlignWnd) delete pAlignWnd;
+//  pAlignWnd = NULL;
+//  pAlignWnd = new CAlignWnd(this, _T("Aligning Window"));
+
+//  if(pCenterDlg) delete pCenterDlg;
+//  pCenterDlg = NULL;
+//  pCenterDlg = new CCenterDlg(this);
+
+//  RECT rDeskTop;
+//  ::GetWindowRect(::GetDesktopWindow(), &rDeskTop);
+//  int ratio = 1;
+//  if((rDeskTop.right < p0.n_columns) ||
+//     (rDeskTop.bottom < p0.n_rows)) {
+//    double ratio1 = double(p0.n_columns)/double(rDeskTop.right-100);
+//    double ratio2 = double(p0.n_rows)/double(rDeskTop.bottom-100);
+//    ratio1 = ceil(ratio1);
+//    ratio2 = ceil(ratio2);
+//    ratio = int(max(ratio1, ratio2) + 0.5);
+//  }
+//  pAlignWnd->Initialize(p0.n_columns/ratio, p0.n_rows/ratio);
+//  pAlignWnd->LoadTextures(p0.pData, p180.pData, p0.n_columns, p0.n_rows);
+//  pAlignWnd->SetTilt(tiltAngle);
+//  pAlignWnd->SetPos(rotationCenter);
+//  pAlignWnd->SetEndMessage(MSG_ALIGN_DONE);
+//  pAlignWnd->SetAbortMessage(MSG_ALIGN_ABORTED);
+//  pAlignWnd->SetAlignmentChangedMessage(MSG_ALIGN_CHANGED);
+//  pAlignWnd->ShowWindow(SW_SHOW);
+//  pAlignWnd->UpdateWindow();
+
+//  CString sString;
+//  sString.Format(_T("%.3f"), -rotationCenter);
+//  pCenterDlg->editCenter.SetWindowText(sString);
+//  sString.Format(_T("%.3f"), -0.5*tiltAngle);
+//  pCenterDlg->editTilt.SetWindowText(sString);
+//  pCenterDlg->ShowWindow(SW_SHOW);
+//  pCenterDlg->UpdateWindow();
+
+  enableWidgets(true);
+  return bFindOk;
 }
 
 
 bool
 MainWindow::arrangeProjections(QString sPath) {
-  angle.clear();
-  filename.clear();
+  angles.clear();
+  fileNames.clear();
   QDir directory = QDir(sPath, QString("*.fits"), QDir::Name, QDir::Files);
   if(!directory.exists()) {
     QMessageBox msgBox;
@@ -652,6 +805,141 @@ MainWindow::arrangeProjections(QString sPath) {
     msgBox.exec();
     return false;
   }
+  CProjection CurrProj;
+  foreach (QString file, fileList) {
+    if(!CurrProj.ReadFromFitsFile(sPath + tr("/") + file)) {
+      QMessageBox msgBox;
+      msgBox.setIcon(QMessageBox::Information);
+      msgBox.setText(QString("Error Reading Fits File:"));
+      msgBox.setInformativeText(CurrProj.sErrorString);
+      msgBox.setStandardButtons(QMessageBox::Ok);
+      msgBox.exec();
+      return false;
+    }
+    pStatusLine->setText(tr("Read File: %1").arg(file));
+    pStatusLine->repaint();
+    qApp->processEvents();
+    fileNames.append(file);
+    angles.append(CurrProj.f_angle);
+  }
+  // Sort Files in Ascending Angle order
+  float tmp;
+  QString sTmp;
+  for(int i=0; i<angles.size()-1; i++) {
+    for(int j=0; j<angles.size()-1-i; j++)
+      if(angles[j+1] < angles[j]) {
+        tmp = angles[j];
+        angles[j] = angles[j+1];
+        angles[j+1] = tmp;
+        sTmp = fileNames[j];
+        fileNames[j] = fileNames[j+1];
+        fileNames[j+1] = sTmp;
+    }
+  }
+  for(int i=0; i<angles.size(); i++) {
+    qDebug() << fileNames[i] << angles[i];
+  }
   return true;
+}
+
+/*
+ *
+afx_msg LRESULT
+CNeuTomoDlg::OnAlignDone(WPARAM wParam, LPARAM lParam) {
+  rotationCenter = pAlignWnd->GetPos();
+  tiltAngle      = pAlignWnd->GetTilt();
+  if(pAlignWnd)  delete pAlignWnd; pAlignWnd = NULL;
+  if(pCenterDlg) delete pCenterDlg; pCenterDlg = NULL;
+  //Start the Show Thread
+  hThread=(HANDLE)_beginthread(RunTomoThread, 0, this);
+  return LRESULT(0);
+}
+
+
+afx_msg LRESULT
+CNeuTomoDlg::OnAlignChanged(WPARAM wParam, LPARAM lParam) {
+  rotationCenter = pAlignWnd->GetPos();
+  tiltAngle      = pAlignWnd->GetTilt();
+  CString sString;
+  sString.Format(_T("%.3f"), -rotationCenter);
+  pCenterDlg->editCenter.SetWindowText(sString);
+  sString.Format(_T("%.3f"), -0.5*tiltAngle);
+  pCenterDlg->editTilt.SetWindowText(sString);
+  return LRESULT(0);
+}
+
+
+afx_msg LRESULT
+CNeuTomoDlg::OnAlignAborted(WPARAM wParam, LPARAM lParam) {
+  if(pAlignWnd)  delete pAlignWnd; pAlignWnd = NULL;
+  if(pCenterDlg) delete pCenterDlg; pCenterDlg = NULL;
+        EnableButtons();
+  return LRESULT(0);
+}
+
+
+*/
+
+// Linear Regression
+// y(x) = a + b*x, for n samples
+// The following assumes the standard deviations are unknown for x and y
+// Returns a, b and r the regression coefficient
+bool
+MainWindow::lineRegress(float *x, float *y, int n, float *a, float *b, float *r) {
+  int i;
+  float sumx=0,sumy=0,sumx2=0,sumy2=0,sumxy=0;
+  float sxx,syy,sxy;
+
+  *a = *b = *r = 0;
+  if(n < 2) return false;
+  // Compute some things we need
+  for(i=0;i<n;i++) {
+    sumx += x[i];
+    sumy += y[i];
+    sumx2 += (x[i] * x[i]);
+    sumy2 += (y[i] * y[i]);
+    sumxy += (x[i] * y[i]);
+  }
+  sxx = sumx2 - sumx * sumx / n;
+  syy = sumy2 - sumy * sumy / n;
+  sxy = sumxy - sumx * sumy / n;
+  // Infinite slope (b), non existant intercept (a)
+  if(fabs(sxx) == 0.0) return false;
+  // Calculate the slope (b) and intercept (a)
+  *b = sxy / sxx;
+  *a = sumy / n - (*b) * sumx / n;
+  // Compute the regression coefficient
+  if(fabs(syy) == 0)
+    *r = 1;
+  else
+    *r = sxy / sqrt(sxx * syy);
+  return true;
+}
+
+
+void
+MainWindow::crossCorr(float *y1, float *y2, float *r, int nSamples, int nChan) {
+  int i, j, k, n;
+  float r1, r2, mean1=0.0, mean2=0.0;
+  memset(r, 0, sizeof(*r)*nChan);
+  for(j=0; j<nSamples; j++) {// t
+    mean1 += *(y1+j);
+    mean2 += *(y2+j);
+  } // for(j=0; j<nSamples; j++)
+  mean1 /= double(nSamples);
+  mean2 /= double(nSamples);
+
+  for(i=-nChan/2; i<nChan/2; i++) {// tau
+    n = 0;
+    for(j=0; j<nSamples; j++) {// t
+      k = j + i;// t + tau
+      if(k<0 || k>=nSamples) continue;
+      r1 = *(y1+j);
+      r2 = *(y2+k);
+      *(r+i+nChan/2) += (r1-mean1)*(r2-mean2);
+      n++;
+    }// for(i=-nChan/2; i<nChan/2; i++) {for(j=0; j<nSamples; j++)
+    *(r+i+nChan/2) /= double(n);// Normalize to N_Points
+  } // for(i=-nChan/2; i<nChan/2; i++)
 }
 
