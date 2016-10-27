@@ -2,6 +2,7 @@
 #include "mainwindow.h"
 #include "Projection.h"
 #include "ParallelTomoThread.h"
+#include <QtMath>
 #include <QObject>
 #include <QOpenGLWindow>
 #include <QOpenGLFunctions>
@@ -24,6 +25,9 @@ GLenum GL_FILTER_mode                = GL_LINEAR;
 void
 DoParallelTomo(tomoThreadParams params) {
   MainWindow* pDlg = (MainWindow *)params.pParent;
+  int imgWidth = params.projWidth;
+  int imgHeight = params.projHeight;
+  int nProjections = params.nProjections;
   QString sTempPath = QString("/tmp/File_");
   QString sString, sFileOut;
   int newTex, newSumTex, oldSumTex;
@@ -56,15 +60,15 @@ DoParallelTomo(tomoThreadParams params) {
 
   clock_t start = clock();
 
-  int m    = int(ceil(log(2.0*pDlg->GetImgWidth())/log(2.0)));
+  int m    = int(ceil(log(2.0*imgWidth)/log(2.0)));
   int nfft = 1 << m;
   float *wfilt  = new float[nfft];
-  if(!buildFilter(wfilt, nfft, pDlg->GetImgWidth(), pDlg->GetFilterType())) {
+  if(!buildFilter(wfilt, nfft, imgWidth, params.filterType)) {
     delete[] wfilt;
     return;
   }
   for(int i=0; i<nfft; i++) {
-    wfilt[i] *= M_PI/float(pDlg->GetNProjections()-1);//Scale factor
+    wfilt[i] *= M_PI/float(nProjections-1);//Scale factor
   }
 
   QOpenGLContext* OpenGLContext = new QOpenGLContext(Q_NULLPTR);
@@ -81,8 +85,8 @@ DoParallelTomo(tomoThreadParams params) {
   }
   OpenGLContext->makeCurrent(Surface);
 
-  int texSizeX = QMin(pDlg->GetVolXSize(), pDlg->GetImgWidth());
-  int texSizeY = int(float(pDlg->GetImgHeight())*float(texSizeX)/float(pDlg->GetImgWidth())+0.5);
+  int texSizeX = qMin(pDlg->GetVolXSize(), imgWidth);
+  int texSizeY = int(float(imgHeight)*float(texSizeX)/float(imgWidth)+0.5);
   int texSizeZ = texSizeX;
 
   CProjection Proj2Save(texSizeX, texSizeY);
@@ -92,7 +96,7 @@ DoParallelTomo(tomoThreadParams params) {
     qDebug() << "Unable to Initialize FBO !";
     return;
   }
-  pDlg->ShowStatusMsg(_T("Creating Textures"));
+  pDlg->ShowStatusMsg(QString("Creating Textures"));
 
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
   glPixelStorei(GL_PACK_ALIGNMENT, 1);
@@ -105,11 +109,11 @@ DoParallelTomo(tomoThreadParams params) {
   }
 
   // Create the projective Textures
-  nProjTex = pDlg->GetNProjections()-1;
+  nProjTex = nProjections-1;
   inTexID = new GLuint[nProjTex];
   glGenTextures(nProjTex, inTexID);
   if(!initProjTextures(nProjTex, inTexID)) {
-    qDebug() << tr("Unable to initialize Projective Textures");
+    qDebug() << QString("Unable to initialize Projective Textures");
     pDlg->bDoTomoEnabled = false;
     return;
   }
@@ -128,16 +132,16 @@ DoParallelTomo(tomoThreadParams params) {
   }
 
   // Projective Texture Matrices
-  GLfloat* transformMats = new GLfloat[(pDlg->GetNProjections()-1)*16];
+  GLfloat* transformMats = new GLfloat[(nProjections-1)*16];
   GLfloat* pMat;
   glMatrixMode(GL_TEXTURE);
-  for(int nProj=0; nProj<pDlg->GetNProjections()-1; nProj++) {
+  for(int nProj=0; nProj<nProjections-1; nProj++) {
     pMat = transformMats+(nProj<<4);
     glLoadIdentity();
-    glTranslatef(0.5*pDlg->GetImgWidth()-pDlg->rotationCenter, 0.5*pDlg->GetImgHeight(), -1.0);
+    glTranslatef(0.5*imgWidth-params.rotationCenter, 0.5*imgHeight, -1.0);
     glRotatef(pDlg->tiltAngle, 0.0, 0.0, 1.0);
     glRotatef(pDlg->GetAngles()[nProj], 0.0, 1.0, 0.0);
-    glTranslatef(-0.5*pDlg->GetImgWidth(), -0.5*pDlg->GetImgHeight(), 0.0);
+    glTranslatef(-0.5*imgWidth, -0.5*imgHeight, 0.0);
     glGetFloatv(GL_TEXTURE_MATRIX, pMat);
   }
 
@@ -145,9 +149,9 @@ DoParallelTomo(tomoThreadParams params) {
   float *pr1    = new float[nfft];
   float *pr2    = new float[nfft];
 
-  int zeroPad1 = (nfft-pDlg->GetImgWidth())*sizeof(*pr1);
+  int zeroPad1 = (nfft-imgWidth)*sizeof(*pr1);
   int zeroPad2 = nfft*sizeof(*pr2);
-  int rowSize  = pDlg->GetImgWidth()*sizeof(*pRow1);
+  int rowSize  = imgWidth*sizeof(*pRow1);
   
   glEnable(GL_TEXTURE_target);
 
@@ -174,7 +178,7 @@ typedef struct _MEMORYSTATUSEX {
   glGetIntegerv(GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX, &cur_avail_mem_kb);
   cur_avail_mem_kb += availableRam_kb;
 
-  int textureSize_kb = pDlg->GetImgWidth()*pDlg->GetImgHeight()*sizeof(*pImage)/1024;
+  int textureSize_kb = imgWidth*imgHeight*sizeof(*pImage)/1024;
   int MaxNumProjInMemory = int(cur_avail_mem_kb/textureSize_kb);// To allow some space
   MaxNumProjInMemory -= 3;// To allow some other space
   if(MaxNumProjInMemory < 2) {
@@ -184,7 +188,7 @@ typedef struct _MEMORYSTATUSEX {
 
   lastAttachedTexture = 0;
   nProjInMemory = 0;
-  for(int nProj=0; nProj<pDlg->GetNProjections()-1; nProj++) {// Exclude the 180� one...
+  for(int nProj=0; nProj<nProjections-1; nProj++) {// Exclude the 180� one...
     if(pDlg->GetEscape()) {
       cgDestroyProgram(fragmentProgram);
       cgDestroyContext(cgContext);
@@ -212,15 +216,15 @@ typedef struct _MEMORYSTATUSEX {
     Projection.ReadFromFitsFile(pDlg->GetPathNames()[nProj]);
     pImage = Projection.pData;
 
-    for(int nRow=0; nRow<pDlg->GetImgHeight(); nRow++) {
-      pRow1 = pImage + nRow*pDlg->GetImgWidth();
+    for(int nRow=0; nRow<imgHeight; nRow++) {
+      pRow1 = pImage + nRow*imgWidth;
       memcpy(pr1, pRow1, rowSize);
-      ZeroMemory(pr1+pDlg->GetImgWidth(), zeroPad1);//Zero padding
+      ZeroMemory(pr1+imgWidth, zeroPad1);//Zero padding
       ZeroMemory(pr2, zeroPad2);
-      if(++nRow < pDlg->GetImgHeight()) {
-        pRow2 = pImage + nRow*pDlg->GetImgWidth();
+      if(++nRow < imgHeight) {
+        pRow2 = pImage + nRow*imgWidth;
         memcpy(pr2, pRow2, rowSize);
-      } // if(++nRow < pDlg->GetImgHeight())
+      } // if(++nRow < imgHeight)
       fft(pr1, pr2, m, 0);// One call two transforms !
 		  for(int i=0; i<nfft; i++) {//Filtering...
 			  pr1[i] *= wfilt[i];
@@ -228,9 +232,9 @@ typedef struct _MEMORYSTATUSEX {
 		  }
 		  fft(pr1, pr2, m, 1);//Inverse Transform
       memcpy(pRow1, pr1, rowSize);
-      if(nRow < pDlg->GetImgHeight())
+      if(nRow < imgHeight)
         memcpy(pRow2, pr2, rowSize);
-    } // for(int nRow=0; nRow<pDlg->GetImgHeight(); nRow++)
+    } // for(int nRow=0; nRow<imgHeight; nRow++)
     
     if(pDlg->GetFilterSinograms()) {
       Projection.f_MedianThreshold = 0.0;
@@ -240,7 +244,7 @@ typedef struct _MEMORYSTATUSEX {
     if(bEnoughMemory) {
       // Try to transfer the Image to Texture Memory
       glBindTexture(GL_TEXTURE_target, inTexID[nProj]);
-      glTexImage2D(GL_TEXTURE_target, 0, GL_TEXTURE_internalformat, pDlg->GetImgWidth(), pDlg->GetImgHeight(), 0, GL_TEXTURE_texFormat, GL_FLOAT, pImage);
+      glTexImage2D(GL_TEXTURE_target, 0, GL_TEXTURE_internalformat, imgWidth, imgHeight, 0, GL_TEXTURE_texFormat, GL_FLOAT, pImage);
       nProjInMemory++;
       //if(!CheckGLErrors(_T("Projective Texture Loading"))) {//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
       if(nProjInMemory >= MaxNumProjInMemory) {
@@ -254,14 +258,14 @@ typedef struct _MEMORYSTATUSEX {
     CString sFileTemp;
     sFileTemp.Format(_T("%s%004d.fft"), sTempPath, nProj);
     FILE* outStream = _tfopen(sFileTemp, _T("wb"));
-    size_t nToWrite = pDlg->GetImgHeight()*pDlg->GetImgWidth();
+    size_t nToWrite = imgHeight*imgWidth;
     size_t nWritten = fwrite(pImage, sizeof(*pImage), nToWrite, outStream);
     fclose(outStream);
     if(nWritten != nToWrite) {
       AfxMessageBox(_T("Error Writing Temp File: ") + sFileTemp);
       return;//<<<<<<<<<<<<<<<<<<<<<<< Gestire la condizione !!!!!!!!!!!!!!!!!!!!!!
     }
-  }// for(int nProj=0; nProj<pDlg->GetNProjections()-1; nProj++)
+  }// for(int nProj=0; nProj<nProjections-1; nProj++)
   if(!CheckGLErrors(_T("Projective Texture Loading"))) {
       return;//<<<<<<<<<<<<<<<<<<<<<<< Gestire la condizione !!!!!!!!!!!!!!!!!!!!!!
   }
@@ -274,7 +278,7 @@ typedef struct _MEMORYSTATUSEX {
   if(pr2    != NULL) delete[] pr2; pr2 = NULL;
   if(wfilt  != NULL) delete[] wfilt; wfilt = NULL;
   
-  float dZ = float(pDlg->GetImgWidth())/float(texSizeZ);
+  float dZ = float(imgWidth)/float(texSizeZ);
   glClearColor(0.0, 0.0, 0.0, 1.0);
 
   glEnable(GL_TEXTURE_GEN_S);
@@ -286,7 +290,7 @@ typedef struct _MEMORYSTATUSEX {
 
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
-  glOrtho(0.0, pDlg->GetImgWidth(), 0.0, pDlg->GetImgHeight(), -pDlg->GetImgWidth(), pDlg->GetImgWidth());
+  glOrtho(0.0, imgWidth, 0.0, imgHeight, -imgWidth, imgWidth);
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
 
@@ -314,8 +318,8 @@ typedef struct _MEMORYSTATUSEX {
   // Calculation of the renderable cylindrical region
   // Must be corrected for the aspect ratio <<<<<<<<<<<<<<<<<<<<<<<<<<<
   float fLimit, r, rl, rr;
-  r = 0.5*float(pDlg->GetImgWidth()-1.0);
-  int iExclude = int(floor(fabs(pDlg->rotationCenter)*dZ))+1;
+  r = 0.5*float(imgWidth-1.0);
+  int iExclude = int(floor(fabs(params.rotationCenter)*dZ))+1;
 
   Proj2Save.ClearImage();
 
@@ -330,7 +334,7 @@ typedef struct _MEMORYSTATUSEX {
       glutDestroyWindow(glutWindowHandle);
       if(inTexID != NULL) delete[] inTexID; 
       if(transformMats != NULL) delete[] transformMats;
-      for(int nProj=0; nProj<pDlg->GetNProjections()-1; nProj++) {
+      for(int nProj=0; nProj<nProjections-1; nProj++) {
         CString sFileTemp;
         sFileTemp.Format(_T("%s%004d.fft"), sTempPath, nProj);
         if(!DeleteFile(sFileTemp)) {
@@ -351,27 +355,27 @@ typedef struct _MEMORYSTATUSEX {
       rl = r - fLimit;
       rr = r + fLimit;
 
-      for(int nProj=0; nProj<pDlg->GetNProjections()-1; nProj++) {
+      for(int nProj=0; nProj<nProjections-1; nProj++) {
         if(nProj > lastAttachedTexture) {
           for(int i=0; i<nProjInMemory; i++) {
             lastAttachedTexture++;
             CString sFileTemp;
             sFileTemp.Format(_T("%s%004d.fft"), sTempPath, lastAttachedTexture);
             FILE* inStream = _tfopen(sFileTemp, _T("rb"));
-            size_t nToRead = pDlg->GetImgHeight()*pDlg->GetImgWidth();
+            size_t nToRead = imgHeight*imgWidth;
             size_t nRead = fread(pImage, sizeof(*pImage), nToRead, inStream);
             fclose(inStream);
             if(nRead != nToRead)
               AfxMessageBox(_T("Error Reading Temp File: ") + sFileTemp);
             glBindTexture(GL_TEXTURE_target, inTexID[i]);
-            glTexImage2D(GL_TEXTURE_target, 0, GL_TEXTURE_internalformat, pDlg->GetImgWidth(), pDlg->GetImgHeight(), 0, GL_TEXTURE_texFormat, GL_FLOAT, pImage);
+            glTexImage2D(GL_TEXTURE_target, 0, GL_TEXTURE_internalformat, imgWidth, imgHeight, 0, GL_TEXTURE_texFormat, GL_FLOAT, pImage);
             if(!CheckGLErrors(_T("Projective Texture Loading"))) {
               AfxMessageBox(_T("Gestire_Errore()"));
             }
-            if(lastAttachedTexture == pDlg->GetNProjections()-2)
+            if(lastAttachedTexture == nProjections-2)
               break;
           }// for(int i=0; i<nProjInMemory; i++)
-          //sString.Format(_T("Last Attached Texture= %d/%d\r\n"), lastAttachedTexture, pDlg->GetNProjections()-1); 
+          //sString.Format(_T("Last Attached Texture= %d/%d\r\n"), lastAttachedTexture, nProjections-1);
           //pMsg->AddText(sString);
         }// if(nProj > lastAttachedTexture)
         glViewport(0, 0, texSizeX, texSizeY);  // Set the final dimension
@@ -384,14 +388,14 @@ typedef struct _MEMORYSTATUSEX {
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         glBegin(GL_QUADS);//image rendering
           glVertex3f(rl, 0.0,       zPlane);
-          glVertex3f(rl, pDlg->GetImgHeight(), zPlane);
-          glVertex3f(rr, pDlg->GetImgHeight(), zPlane);
+          glVertex3f(rl, imgHeight, zPlane);
+          glVertex3f(rr, imgHeight, zPlane);
           glVertex3f(rr, 0.0,       zPlane);
         glEnd();
         glFinish();
         glDrawBuffer(attachmentpoints[newSumTex]);
         // Parallel projection for 1:1 pixel=texture mapping
-        glViewport(0, 0, pDlg->GetImgWidth(), pDlg->GetImgHeight());
+        glViewport(0, 0, imgWidth, imgHeight);
         // Enable fragment program
         cgGLEnableProfile(fragmentProfile);
         cgGLSetTextureParameter(NewTexture, outTexID[newTex]);
@@ -447,29 +451,29 @@ typedef struct _MEMORYSTATUSEX {
     if(!CheckGLErrors(_T("Plane Projection"))) {
       break;
     }
-    if((iPlane < texSizeZ-1) &&(MaxNumProjInMemory < pDlg->GetNProjections()-1)) {
+    if((iPlane < texSizeZ-1) &&(MaxNumProjInMemory < nProjections-1)) {
       for(int i=0; i<nProjInMemory; i++) {
         CString sFileTemp;
         sFileTemp.Format(_T("%s%004d.fft"), sTempPath, i);
         FILE* inStream = _tfopen(sFileTemp, _T("rb"));
-        size_t nToRead = pDlg->GetImgHeight()*pDlg->GetImgWidth();
+        size_t nToRead = imgHeight*imgWidth;
         size_t nRead = fread(pImage, sizeof(*pImage), nToRead, inStream);
         fclose(inStream);
         if(nRead != nToRead)
           AfxMessageBox(_T("Error Reading Temp File: ") + sFileTemp);
         glBindTexture(GL_TEXTURE_target, inTexID[i]);
-        glTexImage2D(GL_TEXTURE_target, 0, GL_TEXTURE_internalformat, pDlg->GetImgWidth(), pDlg->GetImgHeight(), 0, GL_TEXTURE_texFormat, GL_FLOAT, pImage);
+        glTexImage2D(GL_TEXTURE_target, 0, GL_TEXTURE_internalformat, imgWidth, imgHeight, 0, GL_TEXTURE_texFormat, GL_FLOAT, pImage);
         if(!CheckGLErrors(_T("Projective Texture Loading"))) {
           AfxMessageBox(_T("Gestire_Errore()"));
         }
       }// for(int i=0; i<nProjInMemory; i++)
       lastAttachedTexture = nProjInMemory;
-      //sString.Format(_T("Last Attached Texture= %d/%d\r\n"), lastAttachedTexture, pDlg->GetNProjections()-1); 
+      //sString.Format(_T("Last Attached Texture= %d/%d\r\n"), lastAttachedTexture, nProjections-1);
       //pMsg->AddText(sString);
     }
   }// for(int iPlane=0; iPlane<texSizeZ; iPlane++)
   
-  for(int nProj=0; nProj<pDlg->GetNProjections()-1; nProj++) {
+  for(int nProj=0; nProj<nProjections-1; nProj++) {
     CString sFileTemp;
     sFileTemp.Format(_T("%s%004d.fft"), sTempPath, nProj);
     if(!DeleteFile(sFileTemp)) {
