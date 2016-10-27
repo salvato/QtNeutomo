@@ -33,6 +33,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "chooseroidlg.h"
 #include "dotomodlg.h"
 #include <float.h>
+#include "ParallelTomoThread.h"
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -661,6 +662,16 @@ MainWindow::onDoTomoPushed() {
     enableWidgets(true);
     return;
   }
+  //Start the Reconstruction Thread
+  struct tomoThreadParams params;
+  params.pParent = this;
+  params.nProjections = fileNames.size();
+  params.projWidth = pP0->n_columns;
+  params.projHeight = pP0->n_rows;
+  params.rotationCenter = rotationCenter;
+  params.tiltAngle = tiltAngle;
+  params.filterType = 0;
+  //>>>>>>>>>>>>>>>>>><hThread=(HANDLE)_beginthread(RunTomoThread, 0, params);
 }
 
 
@@ -777,7 +788,6 @@ MainWindow::FindCenter(CProjection* pProjection0, CProjection* pProjection180) {
 //  pCenterDlg->ShowWindow(SW_SHOW);
 //  pCenterDlg->UpdateWindow();
 
-  enableWidgets(true);
   return bFindOk;
 }
 

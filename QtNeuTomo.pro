@@ -22,14 +22,16 @@ SOURCES += main.cpp\
     Projection.cpp \
     imagewindow.cpp \
     chooseroidlg.cpp \
-    dotomodlg.cpp
+    dotomodlg.cpp \
+    ParallelTomoThread.cpp
 
 HEADERS  += mainwindow.h \
     preprocessdlg.h \
     Projection.h \
     imagewindow.h \
     chooseroidlg.h \
-    dotomodlg.h
+    dotomodlg.h \
+    ParallelTomoThread.h
 
 FORMS    +=
 
