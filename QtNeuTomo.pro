@@ -6,7 +6,6 @@
 
 QT       += core
 QT       += gui
-QT       += multimedia
 QT       += opengl
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
@@ -35,8 +34,8 @@ HEADERS  += mainwindow.h \
 
 FORMS    +=
 
-LIBS     += -L/home/gabriele/cfitsio/lib -lcfitsio
-INCLUDEPATH += /home/gabriele/cfitsio
+LIBS     += -L/home/pi/cfitsio/lib -lcfitsio
+INCLUDEPATH += /home/pi/cfitsio-3.47
 
 DISTFILES += \
     License.txt \

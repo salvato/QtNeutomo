@@ -24,6 +24,8 @@ GLenum GL_FILTER_mode                = GL_LINEAR;
 
 void
 DoParallelTomo(tomoThreadParams params) {
+    Q_UNUSED(params);
+/*
   MainWindow* pDlg = (MainWindow *)params.pParent;
   int imgWidth = params.projWidth;
   int imgHeight = params.projHeight;
@@ -38,7 +40,7 @@ DoParallelTomo(tomoThreadParams params) {
   GLuint glutWindowHandle = 0;// handle to offscreen "window"
   GLuint theList;// Display List
   GLfloat eyePlaneS[4], eyePlaneT[4], eyePlaneR[4];
-  GLuint outTexID[3], *inTexID=NULL;
+  GLuint outTexID[3], *inTexID=nullptr;
 
   memset(eyePlaneS, 0, 4*sizeof(eyePlaneS[0]));
   memset(eyePlaneT, 0, 4*sizeof(eyePlaneT[0]));
@@ -155,19 +157,18 @@ DoParallelTomo(tomoThreadParams params) {
   
   glEnable(GL_TEXTURE_target);
 
-/*
-typedef struct _MEMORYSTATUSEX {
-  DWORD     dwLength;
-  DWORD     dwMemoryLoad;
-  DWORDLONG ullTotalPhys;
-  DWORDLONG ullAvailPhys;
-  DWORDLONG ullTotalPageFile;
-  DWORDLONG ullAvailPageFile;
-  DWORDLONG ullTotalVirtual;
-  DWORDLONG ullAvailVirtual;
-  DWORDLONG ullAvailExtendedVirtual;
-} MEMORYSTATUSEX, *LPMEMORYSTATUSEX;
-*/
+//typedef struct _MEMORYSTATUSEX {
+//  DWORD     dwLength;
+//  DWORD     dwMemoryLoad;
+//  DWORDLONG ullTotalPhys;
+//  DWORDLONG ullAvailPhys;
+//  DWORDLONG ullTotalPageFile;
+//  DWORDLONG ullAvailPageFile;
+//  DWORDLONG ullTotalVirtual;
+//  DWORDLONG ullAvailVirtual;
+//  DWORDLONG ullAvailExtendedVirtual;
+//} MEMORYSTATUSEX, *LPMEMORYSTATUSEX;
+
   MEMORYSTATUSEX MemStat;
   memset(&MemStat, 0, sizeof(MemStat));// Zero structure
   MemStat.dwLength = sizeof(MemStat);
@@ -198,11 +199,11 @@ typedef struct _MEMORYSTATUSEX {
       if(pr1     != NULL) delete[] pr1;
       if(pr2     != NULL) delete[] pr2;
       for(int i=0; i<nProj; i++) {
-        CString sFileTemp;
+        QString sFileTemp;
         sFileTemp.Format(_T("%s%004d.fft"), sTempPath, i);
         if(!DeleteFile(sFileTemp)) {
           DWORD Error = GetLastError();
-          CString Value = _T("Unable to Delete ");
+          QString Value = _T("Unable to Delete ");
           Value += sFileTemp;
           AfxMessageBox(Value);
         }
@@ -255,7 +256,7 @@ typedef struct _MEMORYSTATUSEX {
       }
     }// if(bEnoughMemory)
 
-    CString sFileTemp;
+    QString sFileTemp;
     sFileTemp.Format(_T("%s%004d.fft"), sTempPath, nProj);
     FILE* outStream = _tfopen(sFileTemp, _T("wb"));
     size_t nToWrite = imgHeight*imgWidth;
@@ -335,11 +336,11 @@ typedef struct _MEMORYSTATUSEX {
       if(inTexID != NULL) delete[] inTexID; 
       if(transformMats != NULL) delete[] transformMats;
       for(int nProj=0; nProj<nProjections-1; nProj++) {
-        CString sFileTemp;
+        QString sFileTemp;
         sFileTemp.Format(_T("%s%004d.fft"), sTempPath, nProj);
         if(!DeleteFile(sFileTemp)) {
           DWORD Error = GetLastError();
-          CString Value = _T("Unable to Delete ");
+          QString Value = _T("Unable to Delete ");
           Value += sFileTemp;
           AfxMessageBox(Value);
         }
@@ -359,7 +360,7 @@ typedef struct _MEMORYSTATUSEX {
         if(nProj > lastAttachedTexture) {
           for(int i=0; i<nProjInMemory; i++) {
             lastAttachedTexture++;
-            CString sFileTemp;
+            QString sFileTemp;
             sFileTemp.Format(_T("%s%004d.fft"), sTempPath, lastAttachedTexture);
             FILE* inStream = _tfopen(sFileTemp, _T("rb"));
             size_t nToRead = imgHeight*imgWidth;
@@ -453,7 +454,7 @@ typedef struct _MEMORYSTATUSEX {
     }
     if((iPlane < texSizeZ-1) &&(MaxNumProjInMemory < nProjections-1)) {
       for(int i=0; i<nProjInMemory; i++) {
-        CString sFileTemp;
+        QString sFileTemp;
         sFileTemp.Format(_T("%s%004d.fft"), sTempPath, i);
         FILE* inStream = _tfopen(sFileTemp, _T("rb"));
         size_t nToRead = imgHeight*imgWidth;
@@ -474,11 +475,11 @@ typedef struct _MEMORYSTATUSEX {
   }// for(int iPlane=0; iPlane<texSizeZ; iPlane++)
   
   for(int nProj=0; nProj<nProjections-1; nProj++) {
-    CString sFileTemp;
+    QString sFileTemp;
     sFileTemp.Format(_T("%s%004d.fft"), sTempPath, nProj);
     if(!DeleteFile(sFileTemp)) {
       DWORD Error = GetLastError();
-      CString Value = _T("Unable to Delete ");
+      QString Value = _T("Unable to Delete ");
       Value += sFileTemp;
       AfxMessageBox(Value);
     }
@@ -505,12 +506,19 @@ typedef struct _MEMORYSTATUSEX {
   if(transformMats != NULL) delete[] transformMats;
   if(inTexID != NULL) delete[] inTexID; 
   return;
+*/
 }
 
 
 bool
 initFBOTextures(int nTextures, GLuint* TexID, int texSizeX, int texSizeY, GLenum* attachmentpoints) {
-  for (int i=0; i< nTextures; i++) {
+    Q_UNUSED(nTextures)
+    Q_UNUSED(TexID)
+    Q_UNUSED(texSizeX)
+    Q_UNUSED(texSizeY)
+    Q_UNUSED(attachmentpoints)
+/*
+    for (int i=0; i< nTextures; i++) {
     glBindTexture(GL_TEXTURE_target, TexID[i]);
     glTexParameteri(GL_TEXTURE_target, GL_TEXTURE_WRAP_S,     GL_CLAMP);
     glTexParameteri(GL_TEXTURE_target, GL_TEXTURE_WRAP_T,     GL_CLAMP);
@@ -522,12 +530,16 @@ initFBOTextures(int nTextures, GLuint* TexID, int texSizeX, int texSizeY, GLenum
     glFramebufferTexture2D(GL_FRAMEBUFFER, attachmentpoints[i], GL_TEXTURE_target, TexID[i], 0);
     if(!CheckFramebufferStatus()) return false;
   } // for (int i=0; i< nTextures; i++)
+*/
   return true;
 }
 
 
 bool
 initProjTextures(int nProjections, GLuint* TexID) {
+    Q_UNUSED(nProjections)
+    Q_UNUSED(TexID)
+/*
   for(int i=0; i<nProjections; i++) {
     glBindTexture(GL_TEXTURE_target, TexID[i]);
     glTexParameteri(GL_TEXTURE_target, GL_TEXTURE_WRAP_S,     GL_CLAMP);
@@ -541,7 +553,7 @@ initProjTextures(int nProjections, GLuint* TexID) {
   glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_EYE_LINEAR);
   glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_EYE_LINEAR);
   if(!CheckGLErrors(_T("glTexGeni"))) return false;
-
+*/
   return true;
 }
 
@@ -549,6 +561,7 @@ initProjTextures(int nProjections, GLuint* TexID) {
 // Sets up the Cg runtime and creates shader.
 bool
 initCG() {
+/*
   cgSetErrorCallback(cgErrorCallback);
   cgContext = cgCreateContext();
   #ifdef _DEBUG
@@ -558,7 +571,7 @@ initCG() {
   #endif
 
   _TCHAR  szAppPath[MAX_PATH] = _T("");
-  CString strAppDirectory;
+  QString strAppDirectory;
 
   ::GetModuleFileName(0, szAppPath, sizeof(szAppPath) - 1);
 
@@ -591,24 +604,26 @@ initCG() {
   // and get parameter handles by name
   NewTexture = cgGetNamedParameter(fragmentProgram, "newTexture");
   OldTexture = cgGetNamedParameter(fragmentProgram, "oldTexture");
+*/
   return true;
 }
 
 
 void 
 cgErrorCallback() {
+/*
   CGerror lastError = cgGetError();
   if(lastError) {
-    CString sError1, sError2, sError;
-    char* cString = (char *)cgGetErrorString(lastError);
+    QString sError1, sError2, sError;
+    char* QString = (char *)cgGetErrorString(lastError);
     size_t requiredSize = mbstowcs(NULL, cString, 0) + 1; 
     _TCHAR* tString = new _TCHAR[requiredSize];
     size_t count = mbstowcs(tString, cString, strlen(cString));
     if(count<requiredSize) tString[count] = 0;
     sError1.Format(_T("%s"), tString);
     delete[] tString;
-    cString = (char *)cgGetLastListing(cgContext);
-    if(cString != NULL) {
+    QString = (char *)cgGetLastListing(cgContext);
+    if(QString != NULL) {
       requiredSize = mbstowcs(NULL, cString, 0) + 1;
       tString = new _TCHAR[requiredSize];
       count = mbstowcs(tString, cString, strlen(cString));
@@ -621,18 +636,21 @@ cgErrorCallback() {
   	AfxMessageBox(sError);
   	return;
   } // if(lastError)
-} 
+*/
+}
 
 
 bool
-CheckForCgError(CString Situation) {
+CheckForCgError(QString Situation) {
+    Q_UNUSED(Situation)
+/*
   CGerror error;
-  CString sError;
+  QString sError;
   const char* cString;
   _TCHAR* tString;
   size_t requiredSize, count;
 
-  cString = cgGetLastErrorString(&error);
+  QString = cgGetLastErrorString(&error);
   requiredSize = mbstowcs(NULL, cString, 0) + 1; 
   tString = new _TCHAR[requiredSize];
   count = mbstowcs(tString, cString, strlen(cString));
@@ -641,9 +659,9 @@ CheckForCgError(CString Situation) {
   delete[] tString;
 
   if(error != CG_NO_ERROR) {
-    CString sMsg;
+    QString sMsg;
     if (error == CG_COMPILER_ERROR) {
-      cString = cgGetLastListing(cgContext);
+      QString = cgGetLastListing(cgContext);
       requiredSize = mbstowcs(NULL, cString, 0) + 1; 
       tString = new _TCHAR[requiredSize];
       count = mbstowcs(tString, cString, strlen(cString));
@@ -656,6 +674,7 @@ CheckForCgError(CString Situation) {
     AfxMessageBox(sMsg, MB_ICONSTOP);
     return false;
   } // if(error != CG_NO_ERROR)
+*/
   return true;
 }
 
@@ -664,17 +683,21 @@ CheckForCgError(CString Situation) {
 // from the traditional framebuffer to the offscreen buffer
 bool
 initFBO(GLuint* pFbo) {
+    Q_UNUSED(pFbo)
+/*
   glGenFramebuffersEXT(1, pFbo);// Create a FBO
   glBindFramebufferEXT(GL_FRAMEBUFFER, *pFbo);// bind offscreen framebuffer
   if(!CheckGLErrors(_T("initFBO"))) {
     return false;
   }
+*/
   return true;
 }
 
 
 bool
 buildFilter(float* wfilt, int nfft, int rowWidth, FILTER_TYPES filterType) {
+/*
   int m = int(log(double(nfft))/log(2.0)+0.5);
   float *pr1    = NULL;
   float *pr2    = NULL;
@@ -718,8 +741,10 @@ buildFilter(float* wfilt, int nfft, int rowWidth, FILTER_TYPES filterType) {
   }
   if(pr1    != NULL) delete[] pr1; pr1 = NULL;
   if(pr2    != NULL) delete[] pr2; pr2 = NULL;
+*/
   return true;
 }
+
 
 /*
   fft - calculate FFT
@@ -777,8 +802,8 @@ fft(float *a, float *b, int m, int iopt) {
     le = 1 << l;
     le1 = le >> 1;
     ua = 1.0;	ub = 0.0;
-    pile1 = M_PI / le1;
-    wa = cos(pile1);	wb = -sin(pile1);
+    pile1 = float(M_PI) / le1;
+    wa = cosf(pile1);	wb = -sinf(pile1);
     for(j=0; j<le1; j++) {
       for(i=j; i<n; i+=le) {
         ip = i + le1;

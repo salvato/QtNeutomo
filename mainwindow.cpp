@@ -345,10 +345,10 @@ void
 MainWindow::onRoiSelected(QRect Selection) {
   cropRegion = Selection;
   pImageWindow->enableSelection(false);
-  disconnect(pImageWindow, SIGNAL(startPosEvent(QPoint)), pChooseRoiDlg, 0);
-  disconnect(pImageWindow, SIGNAL(endPosEvent(QPoint)), pChooseRoiDlg, 0);
-  disconnect(pChooseRoiDlg, SIGNAL(roiSelected(QRect)), this, 0);
-  disconnect(pChooseRoiDlg, SIGNAL(roiDiscarded()),     this, 0);
+  disconnect(pImageWindow, SIGNAL(startPosEvent(QPoint)), pChooseRoiDlg, nullptr);
+  disconnect(pImageWindow, SIGNAL(endPosEvent(QPoint)), pChooseRoiDlg, nullptr);
+  disconnect(pChooseRoiDlg, SIGNAL(roiSelected(QRect)), this, nullptr);
+  disconnect(pChooseRoiDlg, SIGNAL(roiDiscarded()),     this, nullptr);
   pChooseRoiDlg->hide();
   pProjSum->Crop(cropRegion);
   pProjSum->Normalize(0.0, 1.0);// Just to maximize the image contrast...
@@ -720,21 +720,23 @@ MainWindow::FindCenter(CProjection* pProjection0, CProjection* pProjection180) {
     lineRegress(xx, mm, n, &rotationCenter,  &tiltAngle, &rc);
   }
 
-  if(xx != NULL) delete[] xx;
-  if(mm != NULL) delete[] mm;
-  if(_x != NULL) delete[] _x; _x = NULL;
-  if(r  != NULL) delete[] r;
-  if(m  != NULL) delete[] m; m= NULL;
-  if(rm != NULL) delete[] rm;
+  if(xx != nullptr) delete[] xx;
+  if(mm != nullptr) delete[] mm;
+  if(_x != nullptr) delete[] _x;
+  _x = nullptr;
+  if(r  != nullptr) delete[] r;
+  if(m  != nullptr) delete[] m;
+  m= nullptr;
+  if(rm != nullptr) delete[] rm;
 
-  tiltAngle   = atan(tiltAngle)*90.0/M_PI;
-  rotationCenter = 0.5*(rotationCenter);
+  tiltAngle   = atanf(tiltAngle)*90.0f/float(M_PI);
+  rotationCenter = 0.5f*(rotationCenter);
   CProjection p0, p180;
   p0.Copy(*pProjection0);
   p180.Copy(*pProjection180);
   p0.GetMinMax(&fMin, &fMax);
   p180.GetMinMax(&rMin, &rMax);
-  if((fMax-fMin == 0.0) ||(rMax-rMin==0.0))
+  if((fMax-fMin == 0.0f) ||(rMax-rMin==0.0f))
     return false;
   float f_in;
   for(int i=0; i<p0.n_columns*p0.n_rows; i++) {
@@ -748,7 +750,7 @@ MainWindow::FindCenter(CProjection* pProjection0, CProjection* pProjection180) {
   QString sString;
   sString = tr("Rotation center %1").arg(-rotationCenter);
   qDebug() << sString;
-  sString = tr("Tilt Angle %1").arg(-0.5*tiltAngle);
+  sString = tr("Tilt Angle %1").arg(-0.5f*tiltAngle);
   qDebug() << sString;
 
 //  if(pAlignWnd) delete pAlignWnd;
@@ -780,7 +782,7 @@ MainWindow::FindCenter(CProjection* pProjection0, CProjection* pProjection180) {
 //  pAlignWnd->ShowWindow(SW_SHOW);
 //  pAlignWnd->UpdateWindow();
 
-//  CString sString;
+//  QString sString;
 //  sString.Format(_T("%.3f"), -rotationCenter);
 //  pCenterDlg->editCenter.SetWindowText(sString);
 //  sString.Format(_T("%.3f"), -0.5*tiltAngle);
@@ -870,7 +872,7 @@ afx_msg LRESULT
 CNeuTomoDlg::OnAlignChanged(WPARAM wParam, LPARAM lParam) {
   rotationCenter = pAlignWnd->GetPos();
   tiltAngle      = pAlignWnd->GetTilt();
-  CString sString;
+  QString sString;
   sString.Format(_T("%.3f"), -rotationCenter);
   pCenterDlg->editCenter.SetWindowText(sString);
   sString.Format(_T("%.3f"), -0.5*tiltAngle);
