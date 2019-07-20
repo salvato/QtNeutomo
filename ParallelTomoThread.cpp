@@ -16,10 +16,10 @@
 #endif
 
 
-GLenum GL_TEXTURE_target             = GL_TEXTURE_RECTANGLE_ARB;
-GLenum GL_TEXTURE_internalformat     = GL_LUMINANCE32F_ARB;
-GLenum GL_TEXTURE_texFormat          = GL_LUMINANCE;
-GLenum GL_FILTER_mode                = GL_LINEAR;
+//GLenum GL_TEXTURE_target             = GL_TEXTURE_RECTANGLE_ARB;
+//GLenum GL_TEXTURE_internalformat     = GL_LUMINANCE32F_ARB;
+//GLenum GL_TEXTURE_texFormat          = GL_LUMINANCE;
+//GLenum GL_FILTER_mode                = GL_LINEAR;
 
 
 void

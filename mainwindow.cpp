@@ -137,12 +137,9 @@ MainWindow::checkOpenGL() {
   bDoTomoEnabled = true;
   // Here is the place to check Graphic card capabilities !
   // After the GL context has been initialized
-  char* cVersion1   = (char*)glGetString(GL_VERSION);
-  qDebug() << QString("OpenGL Version: ")       + QString(cVersion1);
-  char* cRenderer1  = (char*)glGetString(GL_RENDERER);
-  qDebug() << QString("Graphic Adapter: ")      + QString(cRenderer1);
-  char* cShader1 = (char*)glGetString(GL_SHADING_LANGUAGE_VERSION);
-  qDebug() << QString("Shading Language Version: ")      + QString(cShader1);
+  qDebug() << QString("OpenGL Version: %1").arg(reinterpret_cast<const char*>(glGetString(GL_VERSION)));
+  qDebug() << QString("Graphic Adapter: %1").arg(reinterpret_cast<const char*>(glGetString(GL_RENDERER)));
+  qDebug() << QString("Shading Language Version: %1").arg(reinterpret_cast<const char*>(glGetString(GL_SHADING_LANGUAGE_VERSION)));
   if(!OpenGLContext->hasExtension("GL_NV_texture_rectangle")) {
     qDebug() << "Sorry No ARB_texture_rectangle in OpenGL";
     return false;
