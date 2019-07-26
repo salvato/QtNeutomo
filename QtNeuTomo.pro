@@ -34,8 +34,8 @@ HEADERS  += mainwindow.h \
 
 FORMS    +=
 
-LIBS     += -L/home/pi/cfitsio/lib -lcfitsio
-INCLUDEPATH += /home/pi/cfitsio-3.47
+LIBS     += -L/home/rov/cfitsio-3.47/lib -lcfitsio
+INCLUDEPATH += /home/rov/cfitsio-3.47/include
 
 DISTFILES += \
     License.txt \

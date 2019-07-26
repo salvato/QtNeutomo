@@ -22,10 +22,33 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *
 */
 
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
-
+#pragma once
 #include "preprocessdlg.h"
+
+
+// File Formats
+enum
+ENUM_PROJECTION_FORMATS {
+  PROJECTION_FORMAT_BMP             = 0,
+  PROJECTION_FORMAT_FITS            = 1,
+  PROJECTION_FORMAT_BINARY          = 2,
+  PROJECTION_FORMAT_MODIFIED_BINARY = 3,
+  PROJECTION_FORMAT_JPEG            = 4
+};
+
+
+enum
+FILTER_TYPES {
+  SHEPP_LOGAN = 0,
+  RAM_LAK     = 1
+};
+
+
+enum
+BEAM_GEOMETRY {
+  PARALLEL_BEAM = 0,
+  CONE_BEAM     = 1
+};
 
 QT_FORWARD_DECLARE_CLASS(QLineEdit)
 QT_FORWARD_DECLARE_CLASS(QPushButton)
@@ -37,12 +60,13 @@ QT_FORWARD_DECLARE_CLASS(ChooseRoiDlg)
 QT_FORWARD_DECLARE_CLASS(DoTomoDlg)
 QT_FORWARD_DECLARE_CLASS(CProjection)
 
+
 class MainWindow : public QWidget
 {
   Q_OBJECT
 
 public:// Functions
-  explicit MainWindow(QWidget *parent = 0);
+  explicit MainWindow(QWidget *parent = nullptr);
 
 public slots:
   void onPreProcessPushed();
@@ -91,6 +115,4 @@ private:// Objects
 
   float rotationCenter;
   float tiltAngle;
-
 };
-#endif // MAINWINDOW_H
